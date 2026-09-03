@@ -10,6 +10,10 @@ jobs:
   probe:
     name: Probe
     runs-on: ubuntu-latest
+    env:
+      ENV_PATHS: |
+        probe-env-a
+        probe-env-b
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +65,15 @@ jobs:
           key: probe-v6-split-${{ github.run_id }}
           restore-keys: probe-v6-split-
 
+      # Does `path:` accept a multiline value through an `env` reference?
+      - name: env-indirect restore
+        id: envr
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.ENV_PATHS }}
+          key: probe-env-${{ github.run_id }}
+          restore-keys: probe-env-
+
       - name: Report what each restore found
         run: |
           report() {
@@ -75,10 +88,12 @@ jobs:
           report v4-prefix '${{ steps.v4p.outputs.cache-hit }}' '${{ steps.v4p.outputs.cache-matched-key }}' probe-v4-prefix
           report v6-exact  '${{ steps.v6e.outputs.cache-hit }}'  '${{ steps.v6e.outputs.cache-matched-key }}'  probe-v6-exact
           report v6-split  '${{ steps.v6s.outputs.cache-hit }}'  '${{ steps.v6s.outputs.cache-matched-key }}'  probe-v6-split
+          report env-a     '${{ steps.envr.outputs.cache-hit }}' '${{ steps.envr.outputs.cache-matched-key }}' probe-env-a
+          report env-b     '${{ steps.envr.outputs.cache-hit }}' '${{ steps.envr.outputs.cache-matched-key }}' probe-env-b
 
       - name: Write a marker for the next run to find
         run: |
-          for dir in probe-v6-prefix probe-v4-prefix probe-v6-exact probe-v6-split; do
+          for dir in probe-v6-prefix probe-v4-prefix probe-v6-exact probe-v6-split probe-env-a probe-env-b; do
             mkdir -p "$dir"
             echo "run_id=${{ github.run_id }} event=${{ github.event_name }} ref=${{ github.ref }}" > "$dir/marker.txt"
           done
@@ -89,3 +104,10 @@ jobs:
         with:
           path: probe-v6-split
           key: probe-v6-split-${{ github.run_id }}
+
+      - name: env-indirect save (default branch only)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.ENV_PATHS }}
+          key: probe-env-${{ github.run_id }}
