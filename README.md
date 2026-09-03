@@ -71,6 +71,41 @@ Two consequences worth planning around:
 `cache-hit: false` while still restoring the files — checking `cache-hit` to
 decide whether the cache was usable reads a prefix restore as a miss.
 
+## The pattern that follows from it
+
+Restore everywhere, save only on the default branch. Runs 5–7 test it with
+`actions/cache/restore` plus a conditional `actions/cache/save`:
+
+```yaml
+- uses: actions/cache/restore@v6
+  with:
+    path: build-info
+    key: build-info-${{ github.run_id }}
+    restore-keys: build-info-
+
+# … the work that updates `build-info` …
+
+- if: github.ref == 'refs/heads/main'
+  uses: actions/cache/save@v6
+  with:
+    path: build-info
+    key: build-info-${{ github.run_id }}
+```
+
+| Run | Event          | Restored from             | Saved            |
+| --- | -------------- | ------------------------- | ---------------- |
+| 5   | push `main`    | nothing (first run)       | yes              |
+| 6   | push `main`    | run 5 (`refs/heads/main`) | yes              |
+| 7   | `pull_request` | run 6 (`refs/heads/main`) | **no**           |
+
+Run 7 restored what it needed and left nothing behind: every `build-info` entry
+in the cache list sits on `refs/heads/main`, none on `refs/pull/*`. A pull
+request loses nothing by not saving, because its save was never readable.
+
+One side benefit: `actions/cache/restore` populates `cache-matched-key`, which
+the combined action left empty here — so the log names which entry it restored
+rather than only whether it hit.
+
 ## Reproducing
 
 Push to `main` twice, open a pull request, then push to it again, and read the
