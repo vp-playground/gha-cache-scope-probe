@@ -1,6 +1,6 @@
 # Which GitHub Actions caches can a `pull_request` run restore?
 
-A four-run probe, because the documentation says a run can restore caches from
+A probe, because the documentation says a run can restore caches from
 "the current branch, the base branch, and the default branch" and that turns out
 to hide the case that matters: **a cache written by a `pull_request` run cannot be
 restored by anything, including a later run on the same pull request.**
@@ -105,6 +105,23 @@ request loses nothing by not saving, because its save was never readable.
 One side benefit: `actions/cache/restore` populates `cache-matched-key`, which
 the combined action left empty here — so the log names which entry it restored
 rather than only whether it hit.
+
+## `path` through an `env` reference
+
+Declaring the path list once at job level and referencing it from both the
+restore and the save keeps the two from drifting. It works, and it carries every
+line: `path: ${{ env.ENV_PATHS }}` with a two-directory value saved both
+directories and restored both from one entry.
+
+```yaml
+env:
+  ENV_PATHS: |
+    dir-a
+    dir-b
+```
+
+Worth confirming rather than assuming, because a `path` that resolves to nothing
+still leaves the run green — it just caches nothing.
 
 ## Reproducing
 
