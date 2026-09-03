@@ -1,0 +1,72 @@
+name: Cache Scope Probe
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: Probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Context
+        run: |
+          echo "event      = ${{ github.event_name }}"
+          echo "ref        = ${{ github.ref }}"
+          echo "base_ref   = ${{ github.base_ref }}"
+          echo "head_ref   = ${{ github.head_ref }}"
+          echo "sha        = ${{ github.sha }}"
+          echo "run_id     = ${{ github.run_id }}"
+
+      # Prefix-only restore. The key carries `run_id`, so it can never hit
+      # exactly; the only way to restore is through `restore-keys`. That is what
+      # a real build-info cache relies on.
+      - name: v6 prefix
+        id: v6p
+        uses: actions/cache@v6
+        with:
+          path: probe-v6-prefix
+          key: probe-v6-prefix-${{ github.run_id }}
+          restore-keys: probe-v6-prefix-
+
+      - name: v4 prefix
+        id: v4p
+        uses: actions/cache@v4
+        with:
+          path: probe-v4-prefix
+          key: probe-v4-prefix-${{ github.run_id }}
+          restore-keys: probe-v4-prefix-
+
+      # A fixed key, so every run after the first is an exact hit. Isolates
+      # "can this scope see the entry at all" from "does prefix matching work".
+      - name: v6 exact
+        id: v6e
+        uses: actions/cache@v6
+        with:
+          path: probe-v6-exact
+          key: probe-v6-exact-fixed
+
+      - name: Report what each restore found
+        run: |
+          report() {
+            local label="$1" hit="$2" matched="$3" dir="$4"
+            if [ -f "$dir/marker.txt" ]; then
+              echo "RESULT $label: RESTORED hit=$hit matched=$matched written_by=[$(cat "$dir/marker.txt")]"
+            else
+              echo "RESULT $label: EMPTY hit=$hit matched=$matched"
+            fi
+          }
+          report v6-prefix '${{ steps.v6p.outputs.cache-hit }}' '${{ steps.v6p.outputs.cache-matched-key }}' probe-v6-prefix
+          report v4-prefix '${{ steps.v4p.outputs.cache-hit }}' '${{ steps.v4p.outputs.cache-matched-key }}' probe-v4-prefix
+          report v6-exact  '${{ steps.v6e.outputs.cache-hit }}'  '${{ steps.v6e.outputs.cache-matched-key }}'  probe-v6-exact
+
+      - name: Write a marker for the next run to find
+        run: |
+          for dir in probe-v6-prefix probe-v4-prefix probe-v6-exact; do
+            mkdir -p "$dir"
+            echo "run_id=${{ github.run_id }} event=${{ github.event_name }} ref=${{ github.ref }}" > "$dir/marker.txt"
+          done
