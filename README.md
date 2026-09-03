@@ -75,3 +75,5 @@ decide whether the cache was usable reads a prefix restore as a miss.
 
 Push to `main` twice, open a pull request, then push to it again, and read the
 `RESULT` lines in each run's log.
+
+run 6
