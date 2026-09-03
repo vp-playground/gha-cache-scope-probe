@@ -77,3 +77,5 @@ Push to `main` twice, open a pull request, then push to it again, and read the
 `RESULT` lines in each run's log.
 
 run 6
+
+pr run 7
