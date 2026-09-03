@@ -1,0 +1,23 @@
+name: "context probe"
+description: "Does a composite action step see github.ref in its own if:?"
+runs:
+  using: "composite"
+  steps:
+    - name: positive - if github.ref equals the pull request merge ref
+      if: github.ref == format('refs/pull/{0}/merge', github.event.pull_request.number)
+      shell: bash
+      run: echo "POSITIVE_PR_RAN"
+
+    - name: positive - if github.ref equals refs/heads/main
+      if: github.ref == 'refs/heads/main'
+      shell: bash
+      run: echo "POSITIVE_MAIN_RAN"
+
+    - name: control - if github.ref is a non-empty string
+      if: github.ref != ''
+      shell: bash
+      run: echo "CONTROL_NONEMPTY_RAN"
+
+    - name: report the value as seen inside the composite action
+      shell: bash
+      run: echo "COMPOSITE_SEES_REF=[${{ github.ref }}]"

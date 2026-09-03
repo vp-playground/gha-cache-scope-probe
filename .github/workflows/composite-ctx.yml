@@ -1,0 +1,15 @@
+name: composite context
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/composite-ctx.yml", ".github/actions/ctx/action.yml"]
+  pull_request:
+    paths: [".github/workflows/composite-ctx.yml", ".github/actions/ctx/action.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: job-level control
+        run: echo "JOB_SEES_REF=[${{ github.ref }}]"
+      - uses: ./.github/actions/ctx
